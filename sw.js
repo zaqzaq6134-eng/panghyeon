@@ -1,13 +1,13 @@
 // 앱 파일을 캐시해 오프라인에서도 열리게 하는 서비스워커.
 // 앱을 수정해 다시 올릴 때는 아래 VERSION 숫자를 올려야 사용자 기기가 새 파일을 받습니다.
-const VERSION = 'shift-cal-v1';
+const VERSION = 'shift-cal-v3';
 const TW = 'https://cdn.tailwindcss.com/3.4.17';
-const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(VERSION);
-    await c.addAll(CORE);
+    await Promise.all(CORE.map(u => c.add(u).catch(() => {})));
     try { await c.put(TW, await fetch(TW, { mode: 'no-cors' })); } catch (_) {}
     self.skipWaiting();
   })());

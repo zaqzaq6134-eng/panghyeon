@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>교대근무 달력</title>
+<title>교대달력</title>
 <meta name="theme-color" content="#2563eb">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="교대달력">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <style>
 :root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -150,7 +150,7 @@ button,[role=button]{touch-action:manipulation}
   <!-- Side menu -->
   <div id="overlay" onclick="toggleMenu()" class="absolute inset-0 bg-black/40 z-40 hidden"></div>
   <div id="side" class="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 -translate-x-full transition-transform duration-300 flex flex-col">
-    <div class="p-6 bg-blue-600 text-white"><h2 class="text-xl font-bold">교대근무 달력</h2><p class="text-xs text-blue-100 mt-1">스마트한 일정 관리</p></div>
+    <div class="p-6 bg-blue-600 text-white"><h2 class="text-xl font-bold">교대달력</h2><p class="text-xs text-blue-100 mt-1">스마트한 일정 관리</p></div>
     <div class="p-4 flex-1 space-y-2">
       <button onclick="openBackup()" class="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 text-sm font-medium">💾 데이터 백업 / 복원</button>
       <button onclick="resetAll()" class="w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 text-sm font-medium">🗑️ 모든 데이터 초기화</button>
