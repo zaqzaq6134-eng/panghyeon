@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>교대근무 달력</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="교대달력">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<style>
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{font-family:-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f5f9;color:#1e293b;user-select:none;-webkit-user-select:none}
+input,textarea{user-select:text;-webkit-user-select:text}
+input,select,textarea{font-size:16px!important}
+button,[role=button]{touch-action:manipulation}
+[role=button]:focus-visible{outline:2px solid #2563eb;outline-offset:-2px}
+.modal{display:none}.modal.open{display:flex}
+</style>
+</head>
+<body class="flex justify-center min-h-screen">
+<div id="app" class="w-full max-w-md bg-white min-h-screen sm:min-h-[850px] sm:max-h-[900px] sm:my-4 sm:rounded-3xl sm:shadow-2xl flex flex-col overflow-hidden relative border border-slate-200">
+  <header class="px-3 py-3 border-b border-slate-100 flex items-center justify-between">
+    <div class="flex items-center gap-1">
+      <button onclick="toggleMenu()" class="p-2 text-xl" aria-label="메뉴">☰</button>
+      <button onclick="moveMonth(-1)" class="p-2 text-lg text-slate-500" aria-label="이전 달">‹</button>
+      <h1 id="title" class="text-lg font-bold w-24 text-center">2026. 11</h1>
+      <button onclick="moveMonth(1)" class="p-2 text-lg text-slate-500" aria-label="다음 달">›</button>
+    </div>
+    <button onclick="goToToday()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-full font-medium">오늘</button>
+  </header>
+
+  <main id="main" class="flex-1 overflow-y-auto pb-20">
+    <div class="grid grid-cols-7 text-center py-2 border-b border-slate-100 text-xs font-bold text-slate-500 sticky top-0 bg-white z-10">
+      <div class="text-red-500">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-blue-500">토</div>
+    </div>
+    <div id="grid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
+    <div class="p-4 bg-slate-50">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold text-slate-500">월별 메모</span>
+        <button onclick="saveMonthMemo()" class="text-xs bg-slate-800 text-white px-3 py-1 rounded-lg">저장</button>
+      </div>
+      <textarea id="monthMemo" rows="2" class="w-full p-3 text-sm bg-white border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="이달의 메모를 입력하세요..."></textarea>
+    </div>
+  </main>
+
+  <nav class="absolute bottom-0 inset-x-0 h-16 bg-white border-t border-slate-200 flex justify-around items-center z-20">
+    <button class="flex flex-col items-center w-full text-blue-600"><span class="text-lg">📅</span><span class="text-[10px] font-medium">달력</span></button>
+    <button onclick="openPattern()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">🔁</span><span class="text-[10px] font-medium">패턴입력</span></button>
+    <button onclick="openTags()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">🏷️</span><span class="text-[10px] font-medium">태그관리</span></button>
+    <button onclick="openPay()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">💰</span><span class="text-[10px] font-medium">급여</span></button>
+    <button onclick="openStats()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">📊</span><span class="text-[10px] font-medium">통계</span></button>
+  </nav>
+
+  <div id="toast" class="absolute bottom-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-4 py-2.5 rounded-full opacity-0 pointer-events-none transition-opacity duration-300 z-50 whitespace-nowrap"></div>
+
+  <!-- Day modal -->
+  <div id="dayModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6">
+      <div class="flex justify-between items-center mb-4"><h3 id="dayTitle" class="text-lg font-bold"></h3><button onclick="closeM('dayModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <label class="block text-xs font-semibold text-slate-500 mb-2">근무 태그 선택</label>
+      <div id="tagGrid" class="grid grid-cols-4 gap-2 mb-5"></div>
+      <p id="dayHolName" class="text-xs text-red-500 mb-2 empty:hidden"></p>
+      <label class="flex items-center gap-2 mb-5 text-sm"><input type="checkbox" id="dayHol" class="w-5 h-5"> 이 날을 휴일로 지정 (임시공휴일 등)</label>
+      <label class="block text-xs font-semibold text-slate-500 mb-2">개별 메모</label>
+      <input id="dayMemo" class="w-full px-3 py-2.5 mb-5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="일정이나 메모 입력...">
+      <div class="flex gap-3">
+        <button onclick="saveDay()" class="flex-1 bg-blue-600 text-white font-medium py-3 rounded-xl text-sm">확인</button>
+        <button onclick="clearDayShift()" class="px-4 bg-slate-100 text-slate-600 font-medium py-3 rounded-xl text-sm">근무 초기화</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pattern modal -->
+  <div id="patternModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6 max-h-[90%] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold">교대 근무 패턴 설정</h3><button onclick="closeM('patternModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <label class="block text-xs font-semibold text-slate-500 mb-1.5">패턴 시작일</label>
+      <input type="date" id="patStart" class="w-full px-3 py-2.5 mb-4 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      <label class="block text-xs font-semibold text-slate-500 mb-1.5">빠른 패턴</label>
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <button onclick="preset(['dang','bi','bi'])" class="py-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-xs font-bold">당-비-비</button>
+        <button onclick="preset(['dang','bi'])" class="py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold">당-비</button>
+        <button onclick="preset(['ju','ya','bi','hu'])" class="py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold">주-야-비-휴</button>
+      </div>
+      <label class="block text-xs font-semibold text-slate-500 mb-1.5">순환 순서 (눌러서 삭제)</label>
+      <div id="seqBox" class="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl min-h-[50px] items-center"></div>
+      <div id="palette" class="flex flex-wrap gap-2 mt-2 mb-5"></div>
+      <button onclick="applyPattern()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm">적용</button>
+    </div>
+  </div>
+
+  <!-- Tags modal -->
+  <div id="tagsModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6 max-h-[85%] flex flex-col">
+      <div class="flex justify-between items-center mb-4"><h3 class="text-lg font-bold">근무 태그 관리</h3><button onclick="closeM('tagsModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <div id="tagList" class="overflow-y-auto flex-1 space-y-2 mb-4"></div>
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex gap-2 mb-2">
+          <input id="newName" maxlength="4" placeholder="태그 이름" class="flex-1 min-w-0 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+          <select id="newStyle" class="px-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+            <option value="circle">노란 원</option><option value="pink">분홍 글씨</option><option value="blue">파란 배지</option><option value="emerald">초록 배지</option><option value="purple">보라 배지</option>
+          </select>
+        </div>
+        <button onclick="addTag()" class="w-full bg-slate-900 text-white font-medium py-2.5 rounded-xl text-sm">태그 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats modal -->
+  <div id="statsModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6">
+      <div class="flex justify-between items-center mb-4"><h3 id="statsTitle" class="text-lg font-bold">이달의 근무 통계</h3><button onclick="closeM('statsModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <div id="stats" class="space-y-3 mb-2"></div>
+    </div>
+  </div>
+
+  <!-- Pay modal -->
+  <div id="payModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6 max-h-[92%] overflow-y-auto">
+      <div class="flex justify-between items-center mb-3"><h3 id="payTitle" class="text-lg font-bold">급여 계산</h3><button onclick="closeM('payModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <label class="block text-xs font-semibold text-slate-500 mb-1">계급·직무등급</label>
+      <select id="payRank" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"></select>
+      <div id="rateInfo" class="text-[11px] text-slate-500 mt-1 mb-4"></div>
+      <p class="text-[11px] text-slate-400 mb-2">당직(당) 태그와 달력으로 자동 계산합니다. 칸을 직접 채우면 그 값이 우선합니다(e사람 자료 입력용).</p>
+      <div id="payFields" class="grid grid-cols-2 gap-2 mb-4"></div>
+      <div id="payResult" class="bg-slate-50 rounded-2xl p-4 text-sm space-y-1.5"></div>
+      <p class="text-[11px] text-slate-400 mt-2">초과근무시간 = 당직일수×24 − 근무일수×8 − 휴일근무일수×8, 야간근무시간 = 당직일수×8. 수당은 10원 단위 절사, 2026년 수당표 기준입니다. 공제율은 추정치입니다.</p>
+    </div>
+  </div>
+
+  <!-- Backup modal -->
+  <div id="backupModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6">
+      <div class="flex justify-between items-center mb-3"><h3 class="text-lg font-bold">백업 / 복원</h3><button onclick="closeM('backupModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <p class="text-xs text-slate-500 mb-2">백업: 아래 텍스트를 복사해 보관하세요. 복원: 붙여넣고 복원을 누르세요.</p>
+      <textarea id="backupText" rows="7" class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl resize-none"></textarea>
+      <div class="flex gap-3 mt-3">
+        <button onclick="copyBackup()" class="flex-1 bg-slate-900 text-white py-2.5 rounded-xl text-sm font-medium">복사</button>
+        <button onclick="restoreBackup()" class="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-medium">복원</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Side menu -->
+  <div id="overlay" onclick="toggleMenu()" class="absolute inset-0 bg-black/40 z-40 hidden"></div>
+  <div id="side" class="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 -translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="p-6 bg-blue-600 text-white"><h2 class="text-xl font-bold">교대근무 달력</h2><p class="text-xs text-blue-100 mt-1">스마트한 일정 관리</p></div>
+    <div class="p-4 flex-1 space-y-2">
+      <button onclick="openBackup()" class="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 text-sm font-medium">💾 데이터 백업 / 복원</button>
+      <button onclick="resetAll()" class="w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 text-sm font-medium">🗑️ 모든 데이터 초기화</button>
+    </div>
+    <div class="p-4 border-t border-slate-100 text-center text-xs text-slate-400">Shift Calendar PWA v1.5</div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const fmt = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+const pd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const STYLES = {
+  circle: ['bg-yellow-400 text-slate-900 rounded-full w-7 h-7 flex items-center justify-center font-bold text-xs', '#facc15'],
+  pink: ['text-rose-500 font-bold text-sm', '#f43f5e'],
+  blue: ['bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold', '#2563eb'],
+  emerald: ['bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-xs font-semibold', '#059669'],
+  purple: ['bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-semibold', '#9333ea']
+};
+const defaults = () => {
+  const t = new Date();
+  return {
+    pattern: { startDate: fmt(t.getFullYear(), t.getMonth(), t.getDate()), sequence: ['dang', 'bi', 'bi'] },
+    tags: [
+      { id: 'dang', name: '당', style: 'circle' }, { id: 'bi', name: '비', style: 'pink' },
+      { id: 'ju', name: '주', style: 'blue' }, { id: 'ya', name: '야', style: 'purple' }, { id: 'hu', name: '휴', style: 'emerald' }
+    ],
+    v: 2, overrides: {}, memos: {}, rpay: { rank: 5, basic: 0, tax: 3.3 }
+  };
+};
+let S = defaults();
+let cur = new Date(); cur.setDate(1);
+let selDate = null, selTag = undefined, draftSeq = [];
+const KEY = 'shift_calendar_v2';
+
+function sanitize(o) {
+  if (!o || typeof o !== 'object' || !o.pattern || !Array.isArray(o.tags)) return null;
+  const base = defaults(), r = Object.assign(defaults(), o);
+  r.tags = o.tags.filter(t => t && typeof t.id === 'string' && typeof t.name === 'string' && STYLES[t.style]);
+  if (!r.tags.length) r.tags = base.tags;
+  const ids = new Set(r.tags.map(t => t.id)), seq = Array.isArray(o.pattern.sequence) ? o.pattern.sequence.filter(x => ids.has(x)) : [];
+  r.pattern = { startDate: /^\d{4}-\d{2}-\d{2}$/.test(o.pattern.startDate) ? o.pattern.startDate : base.pattern.startDate, sequence: seq.length ? seq : base.pattern.sequence.filter(x => ids.has(x)) };
+  ['overrides', 'memos'].forEach(k => { if (!r[k] || typeof r[k] !== 'object') r[k] = base[k]; });
+  r.rpay = Object.assign(base.rpay, o.rpay || {}); r.v = 2;
+  return r;
+}
+function load() {
+  try { const r = localStorage.getItem(KEY); if (r) { const o = sanitize(JSON.parse(r)); if (o) S = o; } } catch (e) {}
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { if (!save.w) { save.w = 1; toast('저장 공간을 쓸 수 없어 데이터가 유지되지 않을 수 있습니다'); } } }
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.opacity = 1; clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, 1800); }
+const openM = id => $(id).classList.add('open');
+const closeM = id => $(id).classList.remove('open');
+const tagById = id => S.tags.find(t => t.id === id);
+const tagEl = (t, extra = '') => { const d = document.createElement('div'); d.className = STYLES[t.style][0] + ' ' + extra; d.textContent = t.name; return d; };
+
+// Korean public holidays (관공서의 공휴일에 관한 규정, 2026.5.11. 시행)
+const HC = {};
+function lunarMap(y) {
+  const r = {};
+  try {
+    const f = new Intl.DateTimeFormat('en-u-ca-chinese', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' });
+    for (let i = 0; i < 366; i++) {
+      const t = new Date(Date.UTC(y, 0, 1 + i, 3)); if (t.getUTCFullYear() !== y) break;
+      const p = f.formatToParts(t), mo = p.find(x => x.type === 'month').value, da = +p.find(x => x.type === 'day').value;
+      const k = mo + '-' + da;
+      if (/^\d+$/.test(mo) && (k === '1-1' || k === '8-15' || k === '4-8')) r[k] = fmt(y, t.getUTCMonth(), t.getUTCDate());
+    }
+  } catch (e) {}
+  return r;
+}
+function holidays(y) {
+  if (HC[y]) return HC[y];
+  const items = [], L = lunarMap(y), ad = (ds, n) => { const t = pd(ds); t.setDate(t.getDate() + n); return fmt(t.getFullYear(), t.getMonth(), t.getDate()); };
+  const fx = (m, d, name, rule) => items.push({ ds: fmt(y, m - 1, d), name, rule });
+  fx(1, 1, '신정', 'x'); fx(3, 1, '삼일절', 'w'); fx(5, 1, '노동절', 'w'); fx(5, 5, '어린이날', 'w'); fx(6, 6, '현충일', 'x');
+  fx(7, 17, '제헌절', 'w'); fx(8, 15, '광복절', 'w'); fx(10, 3, '개천절', 'w'); fx(10, 9, '한글날', 'w'); fx(12, 25, '성탄절', 'w');
+  if (L['1-1']) [[-1, '설 연휴'], [0, '설날'], [1, '설 연휴']].forEach(([n, nm]) => items.push({ ds: ad(L['1-1'], n), name: nm, rule: 's' }));
+  if (L['8-15']) [[-1, '추석 연휴'], [0, '추석'], [1, '추석 연휴']].forEach(([n, nm]) => items.push({ ds: ad(L['8-15'], n), name: nm, rule: 's' }));
+  if (L['4-8']) items.push({ ds: L['4-8'], name: '부처님오신날', rule: 'w' });
+  if (y === 2026) items.push({ ds: '2026-06-03', name: '지방선거일', rule: 'x' });
+  const H = new Set(items.map(i => i.ds)), names = {}, by = {}, needs = [];
+  items.forEach(i => { names[i.ds] = names[i.ds] ? names[i.ds] + '·' + i.name : i.name; (by[i.ds] = by[i.ds] || []).push(i); });
+  Object.keys(by).sort().forEach(ds => {
+    const w = pd(ds).getDay(), g = by[ds];
+    g.forEach(i => { if ((i.rule === 'w' && (w === 0 || w === 6)) || (i.rule === 's' && w === 0)) needs.push(ds); });
+    if (w !== 0 && w !== 6 && g.length > 1 && g.some(i => i.rule !== 'x')) needs.push(ds);
+  });
+  needs.sort().forEach(ds => { let d = ad(ds, 1); while (H.has(d) || [0, 6].includes(pd(d).getDay())) d = ad(d, 1); H.add(d); names[d] = '대체공휴일'; });
+  return (HC[y] = names);
+}
+const holName = ds => holidays(+ds.slice(0, 4))[ds] || ((S.overrides[ds] && S.overrides[ds].hol) ? '지정휴일' : '');
+
+function shiftFor(ds) {
+  const o = S.overrides[ds];
+  if (o && o.tagId !== undefined) return o.tagId;
+  const { startDate, sequence } = S.pattern;
+  if (!startDate || !sequence.length) return null;
+  const diff = Math.round((pd(ds) - pd(startDate)) / 864e5);
+  return sequence[((diff % sequence.length) + sequence.length) % sequence.length];
+}
+
+function render() {
+  const y = cur.getFullYear(), m = cur.getMonth();
+  $('title').textContent = `${y}. ${pad(m + 1)}`;
+  $('monthMemo').value = S.memos[`${y}-${pad(m + 1)}`] || '';
+  const grid = $('grid'); grid.innerHTML = '';
+  const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate();
+  const total = Math.ceil((first + last) / 7) * 7, now = new Date();
+  for (let i = 0; i < total; i++) {
+    const dt = new Date(y, m, i - first + 1);
+    const inMonth = dt.getMonth() === m;
+    const ds = fmt(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const cell = document.createElement('div');
+    cell.className = 'min-h-[84px] p-1.5 flex flex-col justify-between cursor-pointer hover:bg-slate-50 ' + (inMonth ? '' : 'opacity-35');
+    cell.onclick = () => openDay(ds);
+    const top = document.createElement('div'); top.className = 'flex justify-between items-center';
+    const n = document.createElement('span'); n.textContent = dt.getDate();
+    const dow = i % 7;
+    const isToday = dt.toDateString() === now.toDateString();
+    n.className = isToday ? 'bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[11px]'
+      : 'font-semibold text-xs ' + ((dow === 0 || holName(ds)) ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-slate-700');
+    top.appendChild(n);
+    const hn = holName(ds);
+    if (hn) { const h = document.createElement('span'); h.textContent = hn; h.title = hn; h.className = 'text-[8px] leading-none text-red-500 truncate max-w-[42px]'; top.appendChild(h); }
+    cell.appendChild(top);
+    const box = document.createElement('div'); box.className = 'flex-1 flex items-center justify-center';
+    const t = tagById(shiftFor(ds)); if (t) box.appendChild(tagEl(t));
+    cell.appendChild(box);
+    const o = S.overrides[ds];
+    if (o && o.memo) { const dot = document.createElement('div'); dot.className = 'w-1.5 h-1.5 bg-blue-500 rounded-full mx-auto'; cell.appendChild(dot); }
+    cell.setAttribute('role', 'button'); cell.tabIndex = 0;
+    cell.setAttribute('aria-label', `${dt.getMonth() + 1}월 ${dt.getDate()}일${hn ? ' ' + hn : ''}${t ? ' 근무 ' + t.name : ''}`);
+    cell.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDay(ds); } };
+    grid.appendChild(cell);
+  }
+}
+function persistMemo() { const k = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}`, v = $('monthMemo').value; if ((S.memos[k] || '') !== v) { if (v) S.memos[k] = v; else delete S.memos[k]; save(); } }
+function moveMonth(d) { persistMemo(); cur = new Date(cur.getFullYear(), cur.getMonth() + d, 1); render(); }
+function goToToday() { persistMemo(); cur = new Date(); cur.setDate(1); render(); }
+function saveMonthMemo() { S.memos[`${cur.getFullYear()}-${pad(cur.getMonth() + 1)}`] = $('monthMemo').value; save(); toast('메모가 저장되었습니다'); }
+function toggleMenu() { const s = $('side'), open = s.classList.contains('-translate-x-full'); s.classList.toggle('-translate-x-full', !open); $('overlay').classList.toggle('hidden', !open); }
+
+// Day modal
+function openDay(ds) {
+  selDate = ds; const o = S.overrides[ds] || {};
+  selTag = o.tagId;
+  const d = pd(ds); $('dayTitle').textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+  $('dayMemo').value = o.memo || ''; $('dayHol').checked = !!o.hol;
+  const bn = holidays(+ds.slice(0, 4))[ds]; $('dayHolName').textContent = bn ? '법정공휴일: ' + bn : (d.getDay() === 0 ? '일요일' : '');
+  renderTagGrid(); openM('dayModal');
+}
+function renderTagGrid() {
+  const g = $('tagGrid'); g.innerHTML = '';
+  S.tags.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'py-2 flex justify-center rounded-xl border-2 ' + (selTag === t.id ? 'border-blue-500 bg-blue-50' : 'border-slate-100');
+    b.appendChild(tagEl(t)); b.onclick = () => { selTag = t.id; renderTagGrid(); };
+    g.appendChild(b);
+  });
+}
+function saveDay() {
+  const memo = $('dayMemo').value.trim(), o = {};
+  if (selTag !== undefined) o.tagId = selTag;
+  if ($('dayHol').checked) o.hol = true;
+  if (memo) o.memo = memo;
+  if (Object.keys(o).length) S.overrides[selDate] = o; else delete S.overrides[selDate];
+  save(); closeM('dayModal'); render(); toast('저장되었습니다');
+}
+function clearDayShift() {
+  const o = S.overrides[selDate];
+  if (o) { delete o.tagId; if (!o.memo && !o.hol) delete S.overrides[selDate]; }
+  save(); closeM('dayModal'); render(); toast('근무가 패턴 기준으로 초기화되었습니다');
+}
+
+// Pattern modal (draft copy)
+function openPattern() { draftSeq = [...S.pattern.sequence]; $('patStart').value = S.pattern.startDate; drawPattern(); openM('patternModal'); }
+function preset(seq) { draftSeq = seq.filter(id => tagById(id)); drawPattern(); }
+function drawPattern() {
+  const b = $('seqBox'); b.innerHTML = '';
+  if (!draftSeq.length) b.innerHTML = '<span class="text-xs text-slate-400">아래 태그를 눌러 추가하세요</span>';
+  draftSeq.forEach((id, i) => {
+    const t = tagById(id); if (!t) return;
+    const e = document.createElement('button');
+    e.className = 'px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-xs font-bold';
+    e.textContent = t.name + ' ✕'; e.onclick = () => { draftSeq.splice(i, 1); drawPattern(); };
+    b.appendChild(e);
+  });
+  const p = $('palette'); p.innerHTML = '';
+  S.tags.forEach(t => {
+    const e = document.createElement('button');
+    e.className = 'px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-semibold flex items-center gap-1';
+    e.innerHTML = `<span class="w-2 h-2 rounded-full inline-block" style="background:${STYLES[t.style][1]}"></span>`;
+    e.appendChild(document.createTextNode('+ ' + t.name));
+    e.onclick = () => { draftSeq.push(t.id); drawPattern(); };
+    p.appendChild(e);
+  });
+}
+function applyPattern() {
+  const v = $('patStart').value;
+  if (!v) return toast('시작일을 지정해주세요');
+  if (!draftSeq.length) return toast('태그를 하나 이상 선택해주세요');
+  S.pattern = { startDate: v, sequence: [...draftSeq] };
+  save(); closeM('patternModal'); render(); toast('패턴이 적용되었습니다');
+}
+
+// Tags
+function openTags() { drawTags(); openM('tagsModal'); }
+function drawTags() {
+  const l = $('tagList'); l.innerHTML = '';
+  S.tags.forEach(t => {
+    const r = document.createElement('div'); r.className = 'flex items-center justify-between p-3 bg-slate-50 rounded-xl';
+    const left = document.createElement('div'); left.className = 'w-10 flex justify-center'; left.appendChild(tagEl(t));
+    const nm = document.createElement('span'); nm.className = 'flex-1 ml-3 text-sm'; nm.textContent = t.name;
+    const del = document.createElement('button'); del.className = 'text-xs text-red-500 px-2 py-1'; del.textContent = '삭제';
+    del.onclick = () => delTag(t.id);
+    r.append(left, nm, del); l.appendChild(r);
+  });
+}
+function addTag() {
+  const name = $('newName').value.trim();
+  if (!name) return toast('태그 이름을 입력하세요');
+  if (S.tags.some(t => t.name === name)) return toast('이미 있는 이름입니다');
+  S.tags.push({ id: 't' + Date.now().toString(36), name, style: $('newStyle').value });
+  $('newName').value = ''; save(); drawTags(); render(); toast('태그가 추가되었습니다');
+}
+function delTag(id) {
+  if (S.tags.length <= 1) return toast('최소 1개의 태그가 필요합니다');
+  if (id === 'dang') return toast("'당' 태그는 당직 계산에 쓰이므로 삭제할 수 없습니다");
+  if (!confirm('삭제하면 패턴과 수동 지정에서도 제거됩니다. 계속할까요?')) return;
+  S.tags = S.tags.filter(t => t.id !== id);
+  S.pattern.sequence = S.pattern.sequence.filter(x => x !== id);
+  Object.keys(S.overrides).forEach(k => { const o = S.overrides[k]; if (o.tagId === id) { delete o.tagId; if (!o.memo && !o.hol) delete S.overrides[k]; } });
+  save(); drawTags(); render();
+}
+
+// Stats
+function openStats() {
+  const y = cur.getFullYear(), m = cur.getMonth(), last = new Date(y, m + 1, 0).getDate(), c = {};
+  for (let d = 1; d <= last; d++) { const id = shiftFor(fmt(y, m, d)); if (id) c[id] = (c[id] || 0) + 1; }
+  $('statsTitle').textContent = `${y}년 ${m + 1}월 근무 통계`;
+  const box = $('stats'); box.innerHTML = '';
+  S.tags.forEach(t => {
+    const n = c[t.id] || 0, pct = Math.round(n / last * 100);
+    const r = document.createElement('div');
+    r.innerHTML = `<div class="flex justify-between text-sm mb-1"><span class="font-semibold"></span><span class="text-slate-500">${n}일 (${pct}%)</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%;background:${STYLES[t.style][1]}"></div></div>`;
+    r.querySelector('span').textContent = t.name; box.appendChild(r);
+  });
+  openM('statsModal');
+}
+
+// Backup
+function openBackup() { toggleMenu(); $('backupText').value = JSON.stringify(S); openM('backupModal'); }
+function copyBackup() {
+  const t = $('backupText'); t.select();
+  try { navigator.clipboard.writeText(t.value).then(() => toast('복사되었습니다'), () => { document.execCommand('copy'); toast('복사되었습니다'); }); }
+  catch (e) { document.execCommand('copy'); toast('복사되었습니다'); }
+}
+function restoreBackup() {
+  try {
+    const o = sanitize(JSON.parse($('backupText').value)); if (!o) throw 0;
+    if (!confirm('현재 데이터를 백업 내용으로 덮어씁니다. 계속할까요?')) return;
+    
+    S = o; save(); closeM('backupModal'); render(); toast('복원되었습니다');
+  } catch (e) { toast('올바른 백업 데이터가 아닙니다'); }
+}
+function resetAll() {
+  if (!confirm('모든 데이터를 초기화할까요?')) return;
+  S = defaults(); save(); toggleMenu(); render(); toast('초기화되었습니다');
+}
+
+// Pay (계급별 수당)
+const RANKS = [['경정·소방령',16960,5653,136331],['경감·소방경',15082,5027,121237],['경위·소방위',13779,4593,110763],['경사·소방장',12934,4311,103969],['경장·소방교',12584,4195,101153],['순경·소방사',11175,3725,89830]];
+const PF = [['duty','월 당직일수','일'],['work','월 근무일수(내근)','일'],['hol','근무 중 휴일','일'],['ot','초과근무시간 직접입력','시간'],['night','야간근무시간 직접입력','시간'],['vFull','전일 휴가','일'],['vDay','주간 휴가','시간'],['vNight','야간 휴가','회'],['basic','기본급 등 기타 월급','원'],['tax','공제율','%']];
+const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
+function payAuto() {
+  const y = cur.getFullYear(), m = cur.getMonth(), last = new Date(y, m + 1, 0).getDate(); let duty = 0, work = 0, hol = 0;
+  for (let d = 1; d <= last; d++) {
+    const w = new Date(y, m, d).getDay(), h = w === 0 || w === 6 || !!holName(fmt(y, m, d));
+    if (shiftFor(fmt(y, m, d)) === 'dang') { duty++; if (h) hol++; }
+    if (!h) work++;
+  }
+  return { duty, work, hol };
+}
+function openPay() {
+  const P = S.rpay;
+  $('payTitle').textContent = `${cur.getFullYear()}년 ${cur.getMonth() + 1}월 급여 계산`;
+  const sel = $('payRank'); sel.innerHTML = '';
+  RANKS.forEach((r, i) => { const o = document.createElement('option'); o.value = i; o.textContent = r[0]; sel.appendChild(o); });
+  sel.value = P.rank; sel.onchange = () => { P.rank = +sel.value; save(); calcPay(); };
+  const box = $('payFields'); box.innerHTML = '';
+  PF.forEach(([k, label, unit]) => {
+    const w = document.createElement('div'), l = document.createElement('label'), i = document.createElement('input');
+    l.className = 'block text-[11px] font-semibold text-slate-500 mb-1'; l.textContent = `${label} (${unit})`;
+    i.id = 'pf_' + k; i.type = 'number'; i.min = '0'; i.step = 'any'; i.inputMode = 'decimal'; i.value = P[k] ?? '';
+    i.className = 'w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm';
+    i.oninput = () => { P[k] = i.value; save(); calcPay(); };
+    w.append(l, i); box.appendChild(w);
+  });
+  calcPay(); openM('payModal');
+}
+function calcPay() {
+  const P = S.rpay, a = payAuto(), R = RANKS[P.rank] || RANKS[5];
+  const v = k => (P[k] === '' || P[k] == null) ? null : Math.max(0, +P[k] || 0);
+  const duty = v('duty') ?? a.duty, work = v('work') ?? a.work, hol = v('hol') ?? a.hol;
+  const otH = v('ot') ?? Math.max(0, duty * 24 - work * 8 - hol * 8), nH = v('night') ?? duty * 8;
+  const ph = { duty: a.duty, work: a.work, hol: a.hol, ot: Math.max(0, duty * 24 - work * 8 - hol * 8), night: duty * 8 };
+  Object.keys(ph).forEach(k => { const e = $('pf_' + k); if (e) e.placeholder = '자동 ' + ph[k]; });
+  $('rateInfo').textContent = `시간외 ${won(R[1])}/시간 · 야간 ${won(R[2])}/시간 · 휴일 ${won(R[3])}/일`;
+  const f = n => Math.floor(n / 10) * 10, A = f(otH * R[1]), B = f(nH * R[2]), C = f(hol * R[3]);
+  const vac = (v('vFull') || 0) * (R[1] * 8 + R[2] * 8) + (v('vDay') || 0) * R[1] + (v('vNight') || 0) * (R[1] * 7 + R[2] * 8);
+  const allow = A + B + C - vac, gross = allow + (v('basic') || 0), tax = gross * Math.min(100, v('tax') || 0) / 100;
+  const box = $('payResult'); box.innerHTML = '';
+  const row = (l, val, cls) => { const d = document.createElement('div'); d.className = 'flex justify-between gap-2 ' + (cls || ''); const x = document.createElement('span'), y = document.createElement('span'); x.textContent = l; y.textContent = val; y.className = 'shrink-0'; d.append(x, y); box.appendChild(d); };
+  row(`초과근무 ${otH}시간`, won(A), 'text-slate-600'); row(`야간근무 ${nH}시간`, won(B), 'text-slate-600'); row(`휴일 ${hol}일`, won(C), 'text-slate-600');
+  if (vac) row('휴가 감액', '-' + won(vac), 'text-rose-500');
+  row('총 수당', won(allow), 'font-semibold border-t border-slate-200 pt-2 mt-1');
+  if (+P.basic) row('기타 월급', won(+P.basic), 'text-slate-600');
+  row('세전 합계', won(gross), 'font-semibold');
+  row(`공제 (${+P.tax || 0}%)`, '-' + won(tax), 'text-slate-500');
+  row('예상 실수령액', won(gross - tax), 'text-lg font-bold text-blue-600 pt-1');
+}
+
+// Swipe
+let sx = null, sy = 0;
+$('main').addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+$('main').addEventListener('touchend', e => {
+  if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null;
+  const dy = e.changedTouches[0].clientY - sy;
+  if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) moveMonth(dx < 0 ? 1 : -1);
+});
+
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+load(); render();
+let lastDay = new Date().toDateString();
+function tick() { const t = new Date().toDateString(); if (t !== lastDay) { lastDay = t; render(); } }
+setInterval(tick, 60000); tick();
+$('monthMemo').addEventListener('blur', persistMemo);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+window.addEventListener('storage', e => { if (e.key === KEY) { load(); render(); } });
+const closable = () => true;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => closable(m) && m.classList.remove('open')); });
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m && closable(m)) m.classList.remove('open'); }));
+</script>
+</body>
+</html>
