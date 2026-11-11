@@ -1,6 +1,6 @@
 // 앱 파일을 캐시해 오프라인에서도 열리게 하는 서비스워커.
 // 앱을 수정해 다시 올릴 때는 아래 VERSION 숫자를 올려야 사용자 기기가 새 파일을 받습니다.
-const VERSION = 'shift-cal-v3';
+const VERSION = 'shift-cal-v5';
 const TW = 'https://cdn.tailwindcss.com/3.4.17';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 

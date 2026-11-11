@@ -40,6 +40,7 @@ button,[role=button]{touch-action:manipulation}
       <div class="text-red-500">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div class="text-blue-500">토</div>
     </div>
     <div id="grid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
+    <div id="periodList" class="px-4 pt-3 empty:hidden"></div>
     <div class="p-4 bg-slate-50">
       <div class="flex justify-between items-center mb-2">
         <span class="text-xs font-bold text-slate-500">월별 메모</span>
@@ -53,6 +54,7 @@ button,[role=button]{touch-action:manipulation}
     <button class="flex flex-col items-center w-full text-blue-600"><span class="text-lg">📅</span><span class="text-[10px] font-medium">달력</span></button>
     <button onclick="openPattern()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">🔁</span><span class="text-[10px] font-medium">패턴입력</span></button>
     <button onclick="openTags()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">🏷️</span><span class="text-[10px] font-medium">태그관리</span></button>
+    <button onclick="openPeriod()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">📌</span><span class="text-[10px] font-medium">기간</span></button>
     <button onclick="openPay()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">💰</span><span class="text-[10px] font-medium">급여</span></button>
     <button onclick="openStats()" class="flex flex-col items-center w-full text-slate-500"><span class="text-lg">📊</span><span class="text-[10px] font-medium">통계</span></button>
   </nav>
@@ -66,6 +68,8 @@ button,[role=button]{touch-action:manipulation}
       <label class="block text-xs font-semibold text-slate-500 mb-2">근무 태그 선택</label>
       <div id="tagGrid" class="grid grid-cols-4 gap-2 mb-5"></div>
       <p id="dayHolName" class="text-xs text-red-500 mb-2 empty:hidden"></p>
+      <div id="dayPeriods" class="text-xs text-slate-600 mb-2 empty:hidden"></div>
+      <button onclick="periodFromDay()" class="text-xs text-blue-600 font-medium mb-4">＋ 이 날부터 기간 추가</button>
       <label class="flex items-center gap-2 mb-5 text-sm"><input type="checkbox" id="dayHol" class="w-5 h-5"> 이 날을 휴일로 지정 (임시공휴일 등)</label>
       <label class="block text-xs font-semibold text-slate-500 mb-2">개별 메모</label>
       <input id="dayMemo" class="w-full px-3 py-2.5 mb-5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="일정이나 메모 입력...">
@@ -134,6 +138,25 @@ button,[role=button]{touch-action:manipulation}
     </div>
   </div>
 
+  <!-- Period modal -->
+  <div id="periodModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
+    <div class="w-full bg-white rounded-t-3xl p-6">
+      <div class="flex justify-between items-center mb-4"><h3 id="perTitle" class="text-lg font-bold">기간 추가</h3><button onclick="closeM('periodModal')" class="p-2 text-slate-400 text-xl">✕</button></div>
+      <label class="block text-xs font-semibold text-slate-500 mb-1">제목 (선택)</label>
+      <input id="perName" maxlength="20" placeholder="예: 휴가, 교육, 출장" class="w-full px-3 py-2.5 mb-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <div><label class="block text-xs font-semibold text-slate-500 mb-1">시작일</label><input type="date" id="perStart" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"></div>
+        <div><label class="block text-xs font-semibold text-slate-500 mb-1">종료일</label><input type="date" id="perEnd" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"></div>
+      </div>
+      <label class="block text-xs font-semibold text-slate-500 mb-2">선 색상</label>
+      <div id="perColors" class="flex gap-3 mb-5"></div>
+      <div class="flex gap-3">
+        <button onclick="savePeriod()" class="flex-1 bg-blue-600 text-white font-medium py-3 rounded-xl text-sm">저장</button>
+        <button id="perDel" onclick="deletePeriod()" class="px-5 bg-red-50 text-red-600 font-medium py-3 rounded-xl text-sm">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Backup modal -->
   <div id="backupModal" class="modal absolute inset-0 bg-black/50 z-40 items-end justify-center">
     <div class="w-full bg-white rounded-t-3xl p-6">
@@ -155,7 +178,7 @@ button,[role=button]{touch-action:manipulation}
       <button onclick="openBackup()" class="w-full text-left px-4 py-3 rounded-xl hover:bg-slate-50 text-sm font-medium">💾 데이터 백업 / 복원</button>
       <button onclick="resetAll()" class="w-full text-left px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 text-sm font-medium">🗑️ 모든 데이터 초기화</button>
     </div>
-    <div class="p-4 border-t border-slate-100 text-center text-xs text-slate-400">Shift Calendar PWA v1.5</div>
+    <div class="p-4 border-t border-slate-100 text-center text-xs text-slate-400">Shift Calendar PWA v1.7</div>
   </div>
 </div>
 
@@ -179,7 +202,7 @@ const defaults = () => {
       { id: 'dang', name: '당', style: 'circle' }, { id: 'bi', name: '비', style: 'pink' },
       { id: 'ju', name: '주', style: 'blue' }, { id: 'ya', name: '야', style: 'purple' }, { id: 'hu', name: '휴', style: 'emerald' }
     ],
-    v: 2, overrides: {}, memos: {}, rpay: { rank: 5, basic: 0, tax: 3.3 }
+    v: 2, overrides: {}, memos: {}, periods: [], rpay: { rank: 5, basic: 0, tax: 3.3 }
   };
 };
 let S = defaults();
@@ -196,6 +219,8 @@ function sanitize(o) {
   r.pattern = { startDate: /^\d{4}-\d{2}-\d{2}$/.test(o.pattern.startDate) ? o.pattern.startDate : base.pattern.startDate, sequence: seq.length ? seq : base.pattern.sequence.filter(x => ids.has(x)) };
   ['overrides', 'memos'].forEach(k => { if (!r[k] || typeof r[k] !== 'object') r[k] = base[k]; });
   r.rpay = Object.assign(base.rpay, o.rpay || {}); r.v = 2;
+  const dre = /^\d{4}-\d{2}-\d{2}$/;
+  r.periods = (Array.isArray(o.periods) ? o.periods : []).filter(p => p && typeof p.id === 'string' && dre.test(p.start) && dre.test(p.end) && p.start <= p.end && /^#[0-9a-fA-F]{6}$/.test(p.color)).map(p => ({ id: p.id, title: String(p.title || '').slice(0, 20), start: p.start, end: p.end, color: p.color }));
   return r;
 }
 function load() {
@@ -258,9 +283,12 @@ function render() {
   const y = cur.getFullYear(), m = cur.getMonth();
   $('title').textContent = `${y}. ${pad(m + 1)}`;
   $('monthMemo').value = S.memos[`${y}-${pad(m + 1)}`] || '';
+  drawPeriodList();
   const grid = $('grid'); grid.innerHTML = '';
   const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate();
   const total = Math.ceil((first + last) / 7) * 7, now = new Date();
+  const dstr = d => fmt(d.getFullYear(), d.getMonth(), d.getDate());
+  const pl = periodLanes(dstr(new Date(y, m, 1 - first)), dstr(new Date(y, m, total - first)));
   for (let i = 0; i < total; i++) {
     const dt = new Date(y, m, i - first + 1);
     const inMonth = dt.getMonth() === m;
@@ -282,9 +310,30 @@ function render() {
     const t = tagById(shiftFor(ds)); if (t) box.appendChild(tagEl(t));
     cell.appendChild(box);
     const o = S.overrides[ds];
-    if (o && o.memo) { const dot = document.createElement('div'); dot.className = 'w-1.5 h-1.5 bg-blue-500 rounded-full mx-auto'; cell.appendChild(dot); }
+    if (o && o.memo) {
+      const ch = Array.from(o.memo), mm = document.createElement('div');
+      mm.className = 'text-[9px] leading-tight tracking-tighter text-blue-600 font-semibold text-center truncate mt-0.5';
+      mm.textContent = ch.slice(0, 6).join('') + (ch.length > 6 ? '…' : ''); mm.title = o.memo; cell.appendChild(mm);
+    }
+    const cover = pl.ps.filter(q => q.start <= ds && ds <= q.end);
+    if (cover.length) {
+      const wrap = document.createElement('div'); wrap.className = 'mt-0.5 space-y-0.5';
+      const maxL = Math.max(...cover.map(q => pl.lane[q.id]));
+      for (let l = 0; l <= maxL; l++) {
+        const q = cover.find(c => pl.lane[c.id] === l), bar = document.createElement('div'); bar.style.height = '4px';
+        if (q) {
+          const st = q.start === ds, en = q.end === ds;
+          bar.style.background = q.color; bar.title = q.title || '';
+          bar.style.marginLeft = st ? '0px' : (i === 0 ? '-6px' : '-7px'); bar.style.marginRight = en ? '0px' : '-6px';
+          if (st) { bar.style.borderTopLeftRadius = bar.style.borderBottomLeftRadius = '2px'; }
+          if (en) { bar.style.borderTopRightRadius = bar.style.borderBottomRightRadius = '2px'; }
+        }
+        wrap.appendChild(bar);
+      }
+      cell.appendChild(wrap);
+    }
     cell.setAttribute('role', 'button'); cell.tabIndex = 0;
-    cell.setAttribute('aria-label', `${dt.getMonth() + 1}월 ${dt.getDate()}일${hn ? ' ' + hn : ''}${t ? ' 근무 ' + t.name : ''}`);
+    cell.setAttribute('aria-label', `${dt.getMonth() + 1}월 ${dt.getDate()}일${hn ? ' ' + hn : ''}${t ? ' 근무 ' + t.name : ''}${o && o.memo ? ' 메모 ' + o.memo : ''}`);
     cell.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDay(ds); } };
     grid.appendChild(cell);
   }
@@ -301,6 +350,7 @@ function openDay(ds) {
   selTag = o.tagId;
   const d = pd(ds); $('dayTitle').textContent = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
   $('dayMemo').value = o.memo || ''; $('dayHol').checked = !!o.hol;
+  $('dayPeriods').textContent = S.periods.filter(p => p.start <= ds && ds <= p.end).map(p => '📌 ' + (p.title || '기간') + ' (' + p.start.slice(5).replace('-', '/') + ' ~ ' + p.end.slice(5).replace('-', '/') + ')').join('  ');
   const bn = holidays(+ds.slice(0, 4))[ds]; $('dayHolName').textContent = bn ? '법정공휴일: ' + bn : (d.getDay() === 0 ? '일요일' : '');
   renderTagGrid(); openM('dayModal');
 }
@@ -421,6 +471,57 @@ function restoreBackup() {
 function resetAll() {
   if (!confirm('모든 데이터를 초기화할까요?')) return;
   S = defaults(); save(); toggleMenu(); render(); toast('초기화되었습니다');
+}
+
+// Periods
+const PCOLORS = ['#111827', '#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#9333ea'];
+let perId = null, perColor = PCOLORS[0];
+function periodLanes(a, b) {
+  const ps = S.periods.filter(p => p.end >= a && p.start <= b).sort((x, y) => x.start < y.start ? -1 : x.start > y.start ? 1 : (x.end < y.end ? 1 : x.end > y.end ? -1 : 0));
+  const ends = [], lane = {};
+  ps.forEach(p => { let i = ends.findIndex(e => e < p.start); if (i < 0) { i = ends.length; ends.push(''); } ends[i] = p.end; lane[p.id] = i; });
+  return { ps, lane };
+}
+function openPeriod(id, ds) {
+  perId = id || null;
+  const p = id ? S.periods.find(x => x.id === id) : null, n = new Date();
+  const base = ds || fmt(cur.getFullYear(), cur.getMonth(), (n.getMonth() === cur.getMonth() && n.getFullYear() === cur.getFullYear()) ? n.getDate() : 1);
+  $('perTitle').textContent = p ? '기간 수정' : '기간 추가';
+  $('perName').value = p ? p.title : ''; $('perStart').value = p ? p.start : base; $('perEnd').value = p ? p.end : base;
+  perColor = p ? p.color : PCOLORS[0]; $('perDel').style.display = p ? '' : 'none';
+  drawPerColors(); openM('periodModal');
+}
+function periodFromDay() { closeM('dayModal'); openPeriod(null, selDate); }
+function drawPerColors() {
+  const b = $('perColors'); b.innerHTML = '';
+  PCOLORS.forEach(c => {
+    const e = document.createElement('button'); e.setAttribute('aria-label', '색상 ' + c); e.className = 'w-9 h-9 rounded-full border-4';
+    e.style.background = c; e.style.borderColor = c === perColor ? '#93c5fd' : 'transparent';
+    e.onclick = () => { perColor = c; drawPerColors(); }; b.appendChild(e);
+  });
+}
+function savePeriod() {
+  const st = $('perStart').value, en = $('perEnd').value;
+  if (!st || !en) return toast('시작일과 종료일을 지정해주세요');
+  if (en < st) return toast('종료일이 시작일보다 빠릅니다');
+  const p = { id: perId || 'p' + Date.now().toString(36), title: $('perName').value.trim(), start: st, end: en, color: perColor };
+  const i = S.periods.findIndex(x => x.id === p.id); if (i >= 0) S.periods[i] = p; else S.periods.push(p);
+  save(); closeM('periodModal'); render(); toast('기간이 저장되었습니다');
+}
+function deletePeriod() {
+  if (!perId || !confirm('이 기간을 삭제할까요?')) return;
+  S.periods = S.periods.filter(x => x.id !== perId); save(); closeM('periodModal'); render(); toast('삭제되었습니다');
+}
+function drawPeriodList() {
+  const y = cur.getFullYear(), m = cur.getMonth(), a = fmt(y, m, 1), b = fmt(y, m, new Date(y, m + 1, 0).getDate()), box = $('periodList'); box.innerHTML = '';
+  S.periods.filter(p => p.end >= a && p.start <= b).sort((x, z) => x.start < z.start ? -1 : 1).forEach(p => {
+    const days = Math.round((pd(p.end) - pd(p.start)) / 864e5) + 1, r = document.createElement('button');
+    r.className = 'w-full flex items-center gap-2 text-left text-xs py-1.5';
+    const bar = document.createElement('span'); bar.className = 'w-5 h-1 rounded shrink-0'; bar.style.background = p.color;
+    const t = document.createElement('span'); t.className = 'font-semibold truncate'; t.textContent = p.title || '기간';
+    const d = document.createElement('span'); d.className = 'text-slate-500 shrink-0 ml-auto'; d.textContent = `${p.start.slice(5).replace('-', '/')} ~ ${p.end.slice(5).replace('-', '/')} (${days}일)`;
+    r.append(bar, t, d); r.onclick = () => openPeriod(p.id); box.appendChild(r);
+  });
 }
 
 // Pay (계급별 수당)
